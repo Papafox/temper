@@ -197,20 +197,25 @@ class USBRead(object):
 
     if info['firmware'][:10] == 'TEMPerF1.4':
       info['firmware'] = info['firmware'][:10]
-      self._parse_bytes('internal temperature', 2, 256.0, bytes, info)
+      self._parse_bytes('internal_temperature', 2, 256.0, bytes, info)
       return info
 
     if info['firmware'][:15] == 'TEMPerGold_V3.1':
       info['firmware'] = info['firmware'][:15]
-      self._parse_bytes('internal temperature', 2, 100.0, bytes, info)
+      self._parse_bytes('internal_temperature', 2, 100.0, bytes, info)
+      return info
+
+    if info['firmware'][:15] == 'TEMPerGold_V3.4':
+      info['firmware'] = info['firmware'][:15]
+      self._parse_bytes('internal_temperature', 2, 100.0, bytes, info)
       return info
 
     if info['firmware'][:12] in [ 'TEMPerX_V3.1', 'TEMPerX_V3.3' ]:
       info['firmware'] = info['firmware'][:12]
-      self._parse_bytes('internal temperature', 2, 100.0, bytes, info)
-      self._parse_bytes('internal humidity', 4, 100.0, bytes, info)
-      self._parse_bytes('external temperature', 10, 100.0, bytes, info)
-      self._parse_bytes('external humidity', 12, 100.0, bytes, info)
+      self._parse_bytes('internal_temperature', 2, 100.0, bytes, info)
+      self._parse_bytes('internal_humidity', 4, 100.0, bytes, info)
+      self._parse_bytes('external_temperature', 10, 100.0, bytes, info)
+      self._parse_bytes('external_humidity', 12, 100.0, bytes, info)
       return info
 
     info['error'] = 'Unknown firmware %s: %s' % (info['firmware'],
@@ -250,12 +255,12 @@ class USBRead(object):
     info['firmware'] = firmware
     m = re.search(r'Temp-Inner:([0-9.]*).*, ?([0-9.]*)', reply)
     if m is not None:
-      info['internal temperature'] = float(m.group(1))
-      info['internal humidity'] = float(m.group(2))
+      info['internal_temperature'] = float(m.group(1))
+      info['internal_humidity'] = float(m.group(2))
     m = re.search(r'Temp-Outer:([0-9.]*)', reply)
     if m is not None:
       try:
-        info['external temperature'] = float(m.group(1))
+        info['external_temperature'] = float(m.group(1))
       except:
         pass
     return info
@@ -296,6 +301,8 @@ class Temper(object):
     if vendorid == 0x413d and productid == 0x2107:
       return True
     if vendorid == 0x1a86 and productid == 0x5523:
+      return True
+    if vendorid == 0x1a86 and productid == 0xe025:
       return True
 
     # The id is not known to this program.
@@ -379,10 +386,10 @@ class Temper(object):
       if 'error' in info:
         s += ' Error: %s' % info['error']
       else:
-        s += ' ' + self._add_temperature('internal temperature', info)
-        s += ' ' + self._add_humidity('internal humidity', info)
-        s += ' ' + self._add_temperature('external temperature', info)
-        s += ' ' + self._add_humidity('external humidity', info)
+        s += ' ' + self._add_temperature('internal_temperature', info)
+        s += ' ' + self._add_humidity('internal_humidity', info)
+        s += ' ' + self._add_temperature('external_temperature', info)
+        s += ' ' + self._add_humidity('external_humidity', info)
       print(s)
 
   def main(self):
