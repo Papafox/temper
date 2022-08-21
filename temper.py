@@ -21,7 +21,6 @@
 # IN THE SOFTWARE.
 
 # Standard python3 modules
-import argparse
 import binascii
 import json
 import os
@@ -33,8 +32,9 @@ import sys
 # Non-standard modules
 try:
   import serial
-except ImportError:
-  print('Cannot import "serial". Please sudo apt-get install python3-serial')
+  import click
+except ImportError as e :
+  print('Cannot import "%s". Please sudo apt install python3-%s' % (e.name, e.name))
   sys.exit(1)
 
 
@@ -195,17 +195,13 @@ class USBRead(object):
     info['hex_firmware'] = str(binascii.b2a_hex(firmware), 'latin-1')
     info['hex_data'] = str(binascii.b2a_hex(bytes), 'latin-1')
 
-    if info['firmware'][:10] == 'TEMPerF1.4':
+    if info['firmware'][:10] in ['TEMPerF1.4', 'TEMPer1F1.']:
       info['firmware'] = info['firmware'][:10]
       self._parse_bytes('internal_temperature', 2, 256.0, bytes, info)
       return info
 
-    if info['firmware'][:15] == 'TEMPerGold_V3.1':
-      info['firmware'] = info['firmware'][:15]
-      self._parse_bytes('internal_temperature', 2, 100.0, bytes, info)
-      return info
-
-    if info['firmware'][:15] == 'TEMPerGold_V3.4':
+    if info['firmware'][:15] in ['TEMPerGold_V3.1', 'TEMPerGold_V3.2',
+                                 'TEMPerGold_V3.3', 'TEMPerGold_V3.4']:
       info['firmware'] = info['firmware'][:15]
       self._parse_bytes('internal_temperature', 2, 100.0, bytes, info)
       return info
@@ -392,48 +388,40 @@ class Temper(object):
         s += ' ' + self._add_humidity('external_humidity', info)
       print(s)
 
-  def main(self):
+@click.command()
+@click.option("--verbose", "-v", is_flag=True, help='Output binary data from thermometer')
+@click.option("--json", is_flag=True, help='Provide output as JSON')
+@click.option("--list", "-l", is_flag=True, help='List all USB devices')
+@click.option("--force", type=str, default=None, help='Force the use of the hex id; ignore other ids')
+def main(verbose, json, list, force):
     '''An example 'main' entry point that can be used to make temper.py a
     standalone program.
     '''
+    temper = Temper()
 
-    parser = argparse.ArgumentParser(description='temper')
-    parser.add_argument('-l', '--list', action='store_true',
-                        help='List all USB devices')
-    parser.add_argument('--json', action='store_true',
-                        help='Provide output as JSON')
-    parser.add_argument('--force', type=str,
-                        help='Force the use of the hex id; ignore other ids',
-                        metavar=('VENDOR_ID:PRODUCT_ID'))
-    parser.add_argument('--verbose', action='store_true',
-                        help='Output binary data from thermometer')
-    args = parser.parse_args()
-    self.verbose = args.verbose
+    if list:
+       self.list(json)
+       return 0
 
-    if args.list:
-      self.list(args.json)
-      return 0
-
-    if args.force:
-      ids = args.force.split(':')
-      if len(ids) != 2:
-        print('Cannot parse hexadecimal id: %s' % args.force)
-        return 1
-      try:
-        vendor_id = int(ids[0], 16)
-        product_id = int(ids[1], 16)
-      except:
-        print('Cannot parse hexadecimal id: %s' % args.force)
-        return 1
-      self.forced_vendor_id = vendor_id;
-      self.forced_product_id = product_id;
+    if force:
+       ids = force.split(':')
+       if len(ids) != 2:
+          print('Cannot parse hexadecimal id: %s' % force)
+          return 1
+       try:
+          vendor_id = int(ids[0], 16)
+          product_id = int(ids[1], 16)
+       except:
+          print('Cannot parse hexadecimal id: %s' % force)
+          return 1
+       temper.forced_vendor_id = vendor_id
+       temper.forced_product_id = product_id
 
     # By default, output the temperature and humidity for all known sensors.
-    results = self.read(args.verbose)
-    self.print(results, args.json)
+    results = temper.read(verbose)
+    temper.print(results, json)
     return 0
 
-
 if __name__ == "__main__":
-  temper = Temper()
-  sys.exit(temper.main())
+  result = main()
+  sys.exit(result)
