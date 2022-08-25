@@ -38,6 +38,9 @@ except ImportError as e :
   sys.exit(1)
 
 
+class TemperException(Exception) :
+   pass
+
 class USBList(object):
   '''Get a list of all of the USB devices on a system, along with their
   associated hidraw or serial (tty) devices.
@@ -154,7 +157,7 @@ class USBRead(object):
 
       if not len(firmware):
         os.close(fd)
-        raise RuntimeError('Cannot read device firmware identifier')
+        raise TemperException('Cannot read device firmware identifier')
 
       if len(firmware) > 8:
         break
